@@ -12,24 +12,24 @@ The model starts by the concatenation of word embeddings and character embedding
 
 ## Setup
 Run this command to get the SQuAD 2.0 dataset:
-'''
+```
 python setup.py
-'''
+```
 The dataset set contains train, dev and test. The dev and test are both from the official dev dataset. CS224N devide it into half for each of the dev and test used in this project.
 
 ## Train
 Run this command to train the model:
-'''
+```
 python train_1.py -n baseline
-'''
+```
 Thanks to the elegant implementation of the original baseline model, the model evaluates itself periodically, and save the weight that has the best performance on dev set as *best.pth.tar*
 
 ## Test
-Run this command to test the wieght on the dev/test set and generate a .csv file.
-'''
+Run this command to test the wieght on the dev/test set and generate a *.csv* file.
+```
 python test.py --split dev --load_path ./save/train/baseline-01/best.pth.tar --name dev_test_01
-'''
-Note that if the *--split* is *dev*, the script will print the F1 and EM score. If it is *test*, it will only generate the .csv file.
+```
+Note that if the *--split* is *dev*, the script will print the F1 and EM score. If it is *test*, it will only generate the *.csv* file.
 
 ## Acknowledgement
 We apprieciate the help from the teaching staff of CS224N winter 2019, especially the starter code written by TA Christopher Chute. [Microsoft Azure](https://azure.microsoft.com/en-us/) generously provided financial support used during development.
