@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data as data
-import util
+import util_analysis
 
 from args import get_test_args
 from collections import OrderedDict
@@ -26,21 +26,21 @@ from os.path import join
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
-from util import collate_fn, SQuAD
+from util_analysis import collate_fn, SQuAD
 
 
 def main(args):
     # Set up logging
-    args.save_dir = util.get_save_dir(args.save_dir, args.name, training=False)
-    log = util.get_logger(args.save_dir, args.name)
+    args.save_dir = util_analysis.get_save_dir(args.save_dir, args.name, training=False)
+    log = util_analysis.get_logger(args.save_dir, args.name)
     log.info('Args: {}'.format(dumps(vars(args), indent=4, sort_keys=True)))
-    device, gpu_ids = util.get_available_devices()
+    device, gpu_ids = util_analysis.get_available_devices()
     args.batch_size *= max(1, len(gpu_ids))
 
     # Get embeddings
     log.info('Loading embeddings...')
-    word_vectors = util.torch_from_json(args.word_emb_file)
-    char_vectors = util.torch_from_json(args.char_emb_file)
+    word_vectors = util_analysis.torch_from_json(args.word_emb_file)
+    char_vectors = util_analysis.torch_from_json(args.char_emb_file)
 
     # Get model
     log.info('Building model...')
@@ -49,7 +49,7 @@ def main(args):
                   hidden_size=args.hidden_size)
     model = nn.DataParallel(model, gpu_ids)
     log.info('Loading checkpoint from {}...'.format(args.load_path))
-    model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
+    model = util_analysis.load_model(model, args.load_path, gpu_ids, return_step=False)
     model = model.to(device)
     model.eval()
 
@@ -65,7 +65,7 @@ def main(args):
 
     # Evaluate
     log.info('Evaluating on {} split...'.format(args.split))
-    nll_meter = util.AverageMeter()
+    nll_meter = util_analysis.AverageMeter()
     pred_dict = {}  # Predictions for TensorBoard
     sub_dict = {}   # Predictions for submission
     eval_file = vars(args)['{}_eval_file'.format(args.split)]
@@ -89,7 +89,7 @@ def main(args):
 
             # Get F1 and EM scores
             p1, p2 = log_p1.exp(), log_p2.exp()
-            starts, ends = util.discretize(p1, p2, args.max_ans_len, args.use_squad_v2)
+            starts, ends = util_analysis.discretize(p1, p2, args.max_ans_len, args.use_squad_v2)
 
             # Log info
             progress_bar.update(batch_size)
@@ -97,7 +97,7 @@ def main(args):
                 # No labels for the test set, so NLL would be invalid
                 progress_bar.set_postfix(NLL=nll_meter.avg)
 
-            idx2pred, uuid2pred = util.convert_tokens(gold_dict,
+            idx2pred, uuid2pred = util_analysis.convert_tokens(gold_dict,
                                                       ids.tolist(),
                                                       starts.tolist(),
                                                       ends.tolist(),
@@ -107,7 +107,13 @@ def main(args):
 
     # Log results (except for test set, since it does not come with labels)
     if args.split != 'test':
-        results = util.eval_dicts(gold_dict, pred_dict, args.use_squad_v2)
+        results_class = util_analysis.eval_class_dicts(gold_dict, pred_dict, args.use_squad_v2)
+        print ("~~~~~~~~~~~~")
+        print (results_class)
+        
+        
+        results = util_analysis.eval_dicts(gold_dict, pred_dict, args.use_squad_v2)   
+        
         results_list = [('NLL', nll_meter.avg),
                         ('F1', results['F1']),
                         ('EM', results['EM'])]
@@ -120,9 +126,12 @@ def main(args):
                                 for k, v in results.items())
         log.info('{} {}'.format(args.split.title(), results_str))
 
+        #analysis
+
+        
         # Log to TensorBoard
         tbx = SummaryWriter(args.save_dir)
-        util.visualize(tbx,
+        util_analysis.visualize(tbx,
                        pred_dict=pred_dict,
                        eval_path=eval_file,
                        step=0,
